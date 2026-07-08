@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -870,7 +870,7 @@
         <span class="tag tag-orange">Reference</span>
       </div>
       <h1>Playwright API Testing Playbook</h1>
-      <p>Complete technical reference for API testing with Playwright: request lifecycle, every HTTP verb, all major auth flows, mocking strategies, advanced configuration, CI/CD integration, and a direct comparison to Postman/Newman, RestAssured, Supertest, Karate, Cypress, and k6.</p>
+      <p>Practical, field-tested guide for API testing with Playwright. It focuses on request lifecycle, common HTTP patterns, auth flows teams actually implement, mocking strategies, CI/CD setup, and realistic tradeoffs versus Postman/Newman, RestAssured, Supertest, Karate, Cypress, and k6.</p>
     </div>
 
     <!-- ══════════════════════════════════════════════════════
@@ -881,7 +881,7 @@
         <div class="chapter-num">1</div>
         <div class="chapter-header-text">
           <h2>Core API Testing Capabilities</h2>
-          <p>Request context lifecycle, all HTTP methods, payload types, response assertions, and request chaining.</p>
+          <p>Request context lifecycle, HTTP method patterns, payload handling, response assertions, and request chaining you will use in real suites.</p>
         </div>
       </div>
 
@@ -889,12 +889,12 @@
       <div id="core-context" class="subsection">
         <h3><span class="sub-num">1.1</span> request Context Setup and Teardown</h3>
         <p>
-          <code>APIRequestContext</code> is the entry point for all API calls. It holds connection pooling, base URL, default headers, TLS settings, and cookie storage. Create it via <code>request.newContext()</code> (module-level singleton for the suite) or use the built-in <code>request</code> fixture (one per test). Always <code>dispose()</code> module-level contexts in <code>afterAll</code>.
+          <code>APIRequestContext</code> is the central object for API calls. It holds connection pooling, base URL, default headers, TLS settings, and cookie storage. Create it via <code>request.newContext()</code> (module-level singleton for the suite) or use the built-in <code>request</code> fixture (one per test). In practice, dispose module-level contexts in <code>afterAll</code> to avoid leaked sockets between runs.
         </p>
         <ul>
           <li><strong>Module import:</strong> <code>import { request } from '@playwright/test'</code> gives the factory. The <code>request</code> test fixture (destructured from the test callback) is auto-provisioned per test.</li>
-          <li><strong><code>baseURL</code>:</strong> Prepended to every relative path—set once, never repeat in every call.</li>
-          <li><strong><code>extraHTTPHeaders</code>:</strong> Merged into every outgoing request. Per-request headers override these.</li>
+          <li><strong><code>baseURL</code>:</strong> Prepended to relative paths. Set it once so request code stays readable.</li>
+          <li><strong><code>extraHTTPHeaders</code>:</strong> Merged into outgoing requests by default. Per-request headers override these.</li>
           <li><strong><code>ignoreHTTPSErrors</code>:</strong> Set <code>true</code> only in controlled lab environments against self-signed certs.</li>
         </ul>
 
@@ -981,7 +981,7 @@ sequenceDiagram
       <div id="core-methods" class="subsection">
         <h3><span class="sub-num">1.2</span> Making GET, POST, PUT, PATCH, DELETE Requests</h3>
         <p>
-          Every HTTP verb has a first-class method on <code>APIRequestContext</code>. All return <code>Promise&lt;APIResponse&gt;</code>. Options are identical across verbs: <code>data</code>, <code>form</code>, <code>multipart</code>, <code>headers</code>, <code>params</code>, <code>timeout</code>, <code>failOnStatusCode</code>.
+          Playwright gives each HTTP verb a direct method on <code>APIRequestContext</code>, and in day-to-day test code they behave consistently. You can usually keep one mental model: send payload via <code>data</code>/<code>form</code>/<code>multipart</code>, add <code>headers</code>/<code>params</code> as needed, and control strictness with <code>timeout</code> and <code>failOnStatusCode</code>.
         </p>
 
         <div class="code-block">
@@ -1076,7 +1076,7 @@ flowchart LR
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — HEAD for fast health checks</strong>
+          <strong>Practical note — HEAD for fast health checks</strong>
           Prefer <code>request.head('/health')</code> over <code>request.get('/health')</code> in smoke tests that only check HTTP status. <code>HEAD</code> never transfers a body, making it ideal for high-frequency liveness probes or as a pre-check before downloading large payloads.
         </div>
       </div>
@@ -1190,7 +1190,7 @@ test('raw XML body', async ({ request }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — header precedence</strong>
+          <strong>Practical note — header precedence</strong>
           Per-request <code>headers</code> are deep-merged with <code>extraHTTPHeaders</code> from the context, with the <em>per-request value winning</em> on conflicts. Use this to override a global <code>Authorization</code> header for specific negative-path tests without creating an entirely new context.
         </div>
       </div>
@@ -1311,11 +1311,11 @@ test('binary response body', async ({ request }) => {
 
         <div class="callout callout-info">
           <strong>Where this is most useful</strong>
-          Response assertions are the backbone of every API test. Use <code>toMatchObject()</code> for partial struct matching (resilient to additive API changes), <code>expect.objectContaining()</code> for nested partial matches inside arrays, and <code>toHaveLength()</code> for paginated list sizes. Combine <code>res.ok()</code> as a fast guard with deep body assertions that only run on success.
+          Strong assertions are what keep API suites trustworthy over time. In practice, partial matching with <code>toMatchObject()</code> and <code>expect.objectContaining()</code> survives schema growth better than exact object equality. A good pattern is to guard quickly with <code>res.ok()</code>, then assert the business-critical fields deeply.
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — never assert volatile fields with <code>toBe()</code></strong>
+          <strong>Practical note — never assert volatile fields with <code>toBe()</code></strong>
           Avoid asserting <code>createdAt</code>, <code>updatedAt</code>, UUIDs, ETags, or request IDs directly with <code>toBe()</code>. Assert their <em>type</em> and <em>format</em> instead: <code>expect(body.createdAt).toMatch(/\d{4}-\d{2}-\d{2}/)</code>. This prevents false failures when test data is regenerated in CI or when server clocks drift.
         </div>
       </div>
@@ -1401,7 +1401,7 @@ test('login → use session token in subsequent calls', async ({ request }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — always clean up with <code>finally</code></strong>
+          <strong>Practical note — always clean up with <code>finally</code></strong>
           Wrap chained CRUD tests in <code>try { ... } finally { await request.delete(...) }</code> so DELETE cleanup runs even when an intermediate assertion throws. Without this, failed tests leave orphaned data that accumulates across runs and causes false failures in later tests.
         </div>
       </div>
@@ -1479,7 +1479,7 @@ test('page.request inherits browser session', async ({ page }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — decision rule for context choice</strong>
+          <strong>Practical note — decision rule for context choice</strong>
           Default to the <code>request</code> fixture for pure API tests — it is lighter (no browser overhead) and fully isolated. Switch to <code>page.request</code> only when the test also drives browser UI <em>and</em> you need cookie continuity between the browser session and API calls (e.g., CSRF token validation, session-authenticated APIs without explicit <code>Authorization</code> headers).
         </div>
       </div>
@@ -1608,7 +1608,7 @@ sequenceDiagram
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — <code>route.fallback()</code> for selective interception</strong>
+          <strong>Practical note — <code>route.fallback()</code> for selective interception</strong>
           Chain multiple <code>page.route()</code> handlers and use <code>route.fallback()</code> to pass requests through to the next handler or the real network. This lets you intercept only <code>/api/payments</code> in a <code>beforeEach</code> while letting all other requests pass through — without a catch-all handler that breaks legitimate calls.
         </div>
       </div>
@@ -1723,7 +1723,7 @@ sequenceDiagram
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — use <code>page.request</code> for post-login API calls</strong>
+          <strong>Practical note — use <code>page.request</code> for post-login API calls</strong>
           After a browser login, use <code>page.request</code> (not the isolated <code>request</code> fixture) to make API calls — it shares the browser's cookie jar, so session-authenticated endpoints return 200 without repeating the login sequence.
         </div>
       </div>
@@ -1732,10 +1732,10 @@ sequenceDiagram
       <div id="core-graphql" class="subsection">
         <h3><span class="sub-num">1.9</span> GraphQL API Testing</h3>
         <p>
-          GraphQL APIs use a single <code>POST</code> endpoint with a JSON body containing <code>query</code> and optional <code>variables</code>. The critical difference from REST: the server returns <strong>HTTP 200 even on application-level errors</strong> — always inspect the <code>errors</code> field in the response body alongside <code>data</code>. Use <code>request.post()</code> with a structured <code>data</code> object; Playwright serialises it automatically.
+          GraphQL APIs use a single <code>POST</code> endpoint with a JSON body containing <code>query</code> and optional <code>variables</code>. The critical difference from REST: the server returns <strong>HTTP 200 even on application-level errors</strong> — you should inspect the <code>errors</code> field alongside <code>data</code>. Use <code>request.post()</code> with a structured <code>data</code> object; Playwright serialises it automatically.
         </p>
         <ul>
-          <li><strong>Never interpolate values into query strings</strong> — pass them via the <code>variables</code> key to prevent injection and enable server-side query caching.</li>
+          <li><strong>Avoid interpolating values into query strings</strong> — pass them via the <code>variables</code> key to reduce injection risk and improve server-side query caching.</li>
           <li><strong>Introspection queries</strong> (<code>__schema</code>, <code>__type</code>) are a free contract test — run them in CI to detect breaking schema changes before they reach production.</li>
           <li><strong>Partial success</strong>: GraphQL can return both <code>data</code> and <code>errors</code> simultaneously when some resolvers succeed and others fail.</li>
           <li><strong>Mock via <code>page.route</code></strong>: intercept <code>**/graphql</code> and branch on <code>requestBody.query</code> to return different fixtures per operation name.</li>
@@ -1867,8 +1867,8 @@ sequenceDiagram
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — always assert both <code>data</code> and <code>errors</code></strong>
-          GraphQL returns HTTP 200 even when all resolvers fail. A test that only checks <code>expect(res.status()).toBe(200)</code> will pass on total failure. Always assert <code>expect(body.errors).toBeUndefined()</code> alongside checking <code>body.data</code> has the expected shape.
+          <strong>Practical note — assert both <code>data</code> and <code>errors</code></strong>
+          GraphQL returns HTTP 200 even when all resolvers fail. A test that only checks <code>expect(res.status()).toBe(200)</code> will pass on total failure. Assert <code>expect(body.errors).toBeUndefined()</code> alongside checks that <code>body.data</code> has the expected shape.
         </div>
       </div>
 
@@ -1876,7 +1876,7 @@ sequenceDiagram
       <div id="core-websocket" class="subsection">
         <h3><span class="sub-num">1.10</span> WebSocket Testing</h3>
         <p>
-          Playwright intercepts WebSocket connections at the browser level via the <code>page.on('websocket', ...)</code> event. Every frame sent and received by the page is observable without modifying the connection. From Playwright v1.48, <code>page.routeWebSocket()</code> enables full mocking: intercept frames from the page, respond with custom payloads, and optionally forward to the real server.
+          Playwright intercepts WebSocket connections at the browser level via the <code>page.on('websocket', ...)</code> event. Frames sent and received by the page are observable without modifying the connection. From Playwright v1.48, <code>page.routeWebSocket()</code> enables full mocking: intercept frames from the page, respond with custom payloads, and optionally forward to the real server.
         </p>
         <ul>
           <li><strong>Observe mode (<code>page.on('websocket')</code>)</strong>: inspect all sent/received frames without altering them — ideal for black-box assertions on a real backend.</li>
@@ -1988,8 +1988,8 @@ sequenceDiagram
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — register the route handler before <code>page.goto()</code></strong>
-          Always register <code>page.routeWebSocket()</code> <em>before</em> calling <code>page.goto()</code>. The browser may attempt the WebSocket connection immediately on page load during initialisation scripts. Late registration misses the first connection and the test fails silently.
+          <strong>Practical note — register the route handler before <code>page.goto()</code></strong>
+          Register <code>page.routeWebSocket()</code> <em>before</em> calling <code>page.goto()</code>. The browser may attempt the WebSocket connection immediately on page load during initialisation scripts. Late registration misses the first connection and the test fails silently.
         </div>
       </div>
 
@@ -2100,7 +2100,7 @@ sequenceDiagram
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — test SSE reconnection behaviour</strong>
+          <strong>Practical note — test SSE reconnection behaviour</strong>
           SSE clients automatically reconnect after a connection drop. Test this by fulfilling the first request with an empty body, then asserting the browser sends a <code>Last-Event-ID</code> header on its second connection — confirming your client correctly implements the EventSource reconnection protocol.
         </div>
       </div>
@@ -2114,7 +2114,7 @@ sequenceDiagram
         <div class="chapter-num">2</div>
         <div class="chapter-header-text">
           <h2>Authentication Mechanisms</h2>
-          <p>Every supported auth scheme with a runnable example and a flow diagram showing the full handshake.</p>
+          <p>Auth schemes teams actually run into in real systems, with runnable examples and handshake diagrams you can adapt quickly.</p>
         </div>
       </div>
 
@@ -2179,12 +2179,12 @@ test('API key as query parameter', async ({ request }) => {
 
         <div class="callout callout-warn">
           <strong>Security note</strong>
-          Never hardcode API keys. Load them via <code>process.env</code> and inject through your CI/CD secret store. Query-parameter keys appear in server access logs, proxy logs, and browser history — prefer header delivery for all keys with write access.
+          Do not hardcode API keys. Load them via <code>process.env</code> and inject through your CI/CD secret store. Query-parameter keys appear in server access logs, proxy logs, and browser history — prefer header delivery for all keys with write access.
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — use a dedicated key per environment</strong>
-          Provision a separate API key per environment (<code>TEST_API_KEY_STAGING</code>, <code>TEST_API_KEY_UAT</code>) scoped to read-only permissions where possible. If a key leaks from a CI log, the blast radius is bounded. Store keys in your CI secret store — never pass them as <code>--env</code> flags visible in process listings.
+          <strong>Practical note — use a dedicated key per environment</strong>
+          Provision a separate API key per environment (<code>TEST_API_KEY_STAGING</code>, <code>TEST_API_KEY_UAT</code>) scoped to read-only permissions where possible. If a key leaks from a CI log, the blast radius is bounded. Store keys in your CI secret store and avoid passing them as <code>--env</code> flags visible in process listings.
         </div>
       </div>
 
@@ -2256,8 +2256,8 @@ test('browser page with Basic auth challenge', async ({ browser }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — <code>httpCredentials.send: 'always'</code></strong>
-          By default Playwright waits for a 401 challenge before sending credentials. Set <code>send: 'always'</code> on the <code>httpCredentials</code> option to send the <code>Authorization</code> header on every first request — eliminating one round-trip for APIs that require credentials upfront and do not issue challenges.
+          <strong>Practical note — <code>httpCredentials.send: 'always'</code></strong>
+          By default Playwright waits for a 401 challenge before sending credentials. Set <code>send: 'always'</code> on the <code>httpCredentials</code> option to send the <code>Authorization</code> header on the first request — eliminating one round-trip for APIs that require credentials upfront and do not issue challenges.
         </div>
       </div>
 
@@ -2265,7 +2265,7 @@ test('browser page with Basic auth challenge', async ({ browser }) => {
       <div id="auth-bearer" class="subsection">
         <h3><span class="sub-num">2.3</span> Bearer Token / JWT</h3>
         <p>
-          The most common API authentication pattern. A short-lived signed JWT (or opaque token) is obtained from an auth endpoint and attached as <code>Authorization: Bearer &lt;token&gt;</code> on every subsequent request. Store it in an environment variable or a test fixture to avoid repeated logins within a suite.
+          For most modern APIs, this is the default pattern: fetch a short-lived token once, then reuse it as <code>Authorization: Bearer &lt;token&gt;</code>. Teams usually keep token acquisition in a fixture so test files stay focused on behavior, not login plumbing.
         </p>
 
         <div class="code-block">
@@ -2355,7 +2355,7 @@ sequenceDiagram
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — assert JWT expiry before using it</strong>
+          <strong>Practical note — assert JWT expiry before using it</strong>
           Decode the JWT payload with <code>JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())</code> and check <code>exp > Date.now() / 1000 + 60</code>. This prevents flaky test failures when a cached token expires mid-suite in slow CI environments.
         </div>
       </div>
@@ -2453,7 +2453,7 @@ sequenceDiagram
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — cache the token for the worker lifetime</strong>
+          <strong>Practical note — cache the token for the worker lifetime</strong>
           Store the access token in a <code>worker</code>-scoped fixture and check its <code>expires_in</code> field. Re-request the token only when it has less than 60 seconds remaining. This reduces auth server load and eliminates token-expiry flakiness in long-running parallel workers.
         </div>
       </div>
@@ -2563,11 +2563,11 @@ sequenceDiagram
 
         <div class="callout callout-info">
           <strong>Where this is most useful</strong>
-          Authorization Code flow testing is essential for user-delegated access applications: social login (Google, GitHub OAuth), enterprise SSO, and any app that requires explicit user consent. Rather than automating the browser consent flow in every test, complete it once in a setup project, save the resulting <code>storageState</code>, and reuse tokens across the entire suite.
+          Use this when access depends on real user consent (social login, enterprise SSO, partner integrations). Most teams avoid replaying the full consent UI in every test; they run the flow once in setup, persist <code>storageState</code>, and spend the rest of the suite validating API behavior instead of auth ceremony.
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — capture the auth code via <code>page.waitForRequest</code></strong>
+          <strong>Practical note — capture the auth code via <code>page.waitForRequest</code></strong>
           After clicking the consent button, capture the authorization code from the redirect URL with <code>page.waitForRequest(r =&gt; r.url().includes('code='))</code>. Extract the code with <code>new URL(req.url()).searchParams.get('code')</code> — no need to set up a local redirect server.
         </div>
       </div>
@@ -2641,7 +2641,7 @@ test('inject session cookie directly into context', async ({ browser }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — assert cookie security attributes</strong>
+          <strong>Practical note — assert cookie security attributes</strong>
           After login, use <code>context.cookies()</code> to retrieve the session cookie and assert it has <code>httpOnly: true</code>, <code>secure: true</code>, and a meaningful <code>sameSite</code> setting (<code>'Strict'</code> or <code>'Lax'</code>). This is a security regression test that catches misconfigured session middleware before it reaches production.
         </div>
       </div>
@@ -2703,7 +2703,7 @@ test('browser navigates NTLM-protected intranet page', async ({ browser }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — verify the negotiate header value</strong>
+          <strong>Practical note — verify the negotiate header value</strong>
           The server sends a <code>WWW-Authenticate: Negotiate</code> or <code>WWW-Authenticate: NTLM</code> challenge header. If your intranet serves <code>Negotiate</code> (which prefers Kerberos), run tests on a domain-joined machine with a valid Kerberos ticket cache — otherwise the OS falls back to NTLM. Check the negotiated protocol in the response <code>Authorization</code> header value (<code>NTLM</code> starts with <code>TlRM...</code>, Kerberos with <code>YII...</code>).
         </div>
       </div>
@@ -3058,7 +3058,7 @@ test('admin creates user, user fetches profile', async ({ adminApi, userApi }) =
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — scope to <code>'worker'</code> for expensive resources</strong>
+          <strong>Practical note — scope to <code>'worker'</code> for expensive resources</strong>
           Fixtures scoped to <code>'test'</code> create and destroy a new <code>APIRequestContext</code> for every test. Scoping to <code>'worker'</code> creates one context per parallel worker (shared across all tests in that worker). For API-only suites where tests do not mutate shared state, <code>'worker'</code> scope significantly reduces TCP and TLS handshake overhead in large suites.
         </div>
       </div>
@@ -3159,7 +3159,7 @@ test('propagate non-2xx as test failure immediately', async ({ request }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — use intervals that match your system's behaviour</strong>
+          <strong>Practical note — use intervals that match your system's behaviour</strong>
           For async jobs that typically complete in 5–10 seconds, use <code>intervals: [1000, 2000, 2000, 5000]</code> — polling aggressively early (catching fast completions) then backing off. Avoid uniform 1000ms polling; it adds unnecessary wait on every test that completes quickly.
         </div>
       </div>
@@ -3280,11 +3280,11 @@ flowchart TD
 
         <div class="callout callout-info">
           <strong>Where this is most useful</strong>
-          Parallel execution is most impactful for large API test suites (100+ tests) where each test makes independent HTTP calls. With <code>fullyParallel: true</code> and 4 workers, a 200-test suite running at 300ms per test drops from 60 seconds to ~15 seconds. The prerequisite: every test must be fully isolated — no shared mutable state, no test-ordering dependencies.
+          Parallelism pays off once your suite is large enough that serial runs slow PR feedback. The speedup is real, but only if test data is isolated per worker; shared mutable state is where most "parallel is flaky" complaints come from.
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — use unique identifiers in test data</strong>
+          <strong>Practical note — use unique identifiers in test data</strong>
           When parallel tests create data (users, orders, posts), include a unique prefix like <code>Date.now()</code> or <code>crypto.randomUUID()</code> in entity names and emails. This prevents tests on different workers from colliding on unique-constraint violations in the database, which is the most common source of parallel test flakiness.
         </div>
       </div>
@@ -3388,7 +3388,7 @@ test('uses env-configured base URL', async ({ request }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — fail fast on missing secrets</strong>
+          <strong>Practical note — fail fast on missing secrets</strong>
           Add a <code>beforeAll</code> guard that checks all required env vars are present: <code>const missing = ['API_URL', 'TEST_USER', 'TEST_PASS'].filter(k =&gt; !process.env[k]);</code> then throw with a clear list if any are missing. This surfaces misconfigured CI secrets as an immediate clear error rather than mysterious 401s or 500s scattered across 50 test failures.
         </div>
       </div>
@@ -3397,7 +3397,7 @@ test('uses env-configured base URL', async ({ request }) => {
       <div id="adv-cicd" class="subsection">
         <h3><span class="sub-num">3.5</span> CI/CD Integration — GitHub Actions</h3>
         <p>
-          Playwright ships a GitHub Actions reporter (<code>'github'</code>) that annotates failing tests directly on the PR diff. The <code>--with-deps</code> flag installs OS-level browser dependencies. Use <code>actions/upload-artifact</code> to persist the HTML report on every run.
+          This setup keeps failures visible where developers already work: directly in PRs. In real projects, the biggest quality-of-life gain is artifact retention, because having the HTML report and traces from the exact failing run cuts debugging time dramatically.
         </p>
 
         <div class="code-block">
@@ -3529,11 +3529,11 @@ flowchart LR
 
         <div class="callout callout-info">
           <strong>Where this is most useful</strong>
-          A well-configured CI pipeline enables: (1) <strong>PR gate</strong> — block merges when API contracts break; (2) <strong>nightly regression</strong> — run the full suite against staging on a schedule; (3) <strong>sharded execution</strong> — split a 400-test suite across 4 runners, completing in a quarter of the time; (4) <strong>artifact retention</strong> — keep HTML reports for 30 days so post-deployment regressions can be traced to the exact failing response.
+          A practical CI strategy is usually: strict PR gate for fast checks, broader nightly regression for drift, sharding when runtime grows, and artifact retention long enough to investigate post-release issues without guesswork.
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — always combine <code>fail-fast: false</code> with the blob reporter</strong>
+          <strong>Practical note — pair <code>fail-fast: false</code> with the blob reporter</strong>
           If <code>fail-fast: false</code> is set but you don't use the blob reporter, shards that fail early still lose their results. With <code>fail-fast: false</code> + blob artifacts + <code>merge-reports</code>, you get a complete picture of ALL failures from all shards in one consolidated HTML report.
         </div>
       </div>
@@ -3656,7 +3656,7 @@ npx allure open allure-report
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — use <code>test.step()</code> for structured reports</strong>
+          <strong>Practical note — use <code>test.step()</code> for structured reports</strong>
           Wrap logical sub-operations in <code>await test.step('Obtain token', async () =&gt; {...})</code>. Steps appear as expandable tree nodes in both HTML and Allure reports, with timing per step and attachment points. This transforms a flat test into a readable specification with pass/fail granularity at each action.
         </div>
       </div>
@@ -3747,11 +3747,11 @@ test.describe('Tenant data isolation', () =&gt; {
 
         <div class="callout callout-info">
           <strong>Where this is most useful</strong>
-          Data-driven tests are the most maintainable approach for: endpoint smoke matrices (verify every REST resource returns the right status), RBAC verification (assert role permissions with a matrix of role × endpoint × expected status), multi-tenant isolation (same request from different tenant tokens should never cross data boundaries), and pagination edge cases (page=0, page=MAX_INT, negative page).
+          Data-driven tests work best when the logic stays the same but inputs vary widely: role matrices, tenant-boundary checks, endpoint smoke coverage, and pagination edges. They keep test intent readable while letting you expand coverage by editing data instead of duplicating test code.
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — load test data from JSON fixture files</strong>
+          <strong>Practical note — load test data from JSON fixture files</strong>
           Define test matrices in <code>fixtures/endpoints.json</code> and import with <code>import testCases from '../fixtures/endpoints.json'</code> (requires <code>resolveJsonModule: true</code> in <code>tsconfig.json</code>). This separates test data from test logic, allows non-engineers to add test cases without touching TypeScript, and keeps diffs clean when adding new cases.
         </div>
       </div>
@@ -3926,7 +3926,7 @@ test('validate all users — report all invalid emails', async ({ request }) => 
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — add a descriptive message to every soft assertion</strong>
+          <strong>Practical note — add a descriptive message to every soft assertion</strong>
           Pass a second string argument: <code>expect.soft(user.email, `user ${user.id} has invalid email`).toMatch(/.../);</code>. Without this, failure messages like “received undefined” give no context about which list item failed. Descriptive messages transform a soft-assertion failure report into an actionable list of exactly which records are broken.
         </div>
       </div>
@@ -4066,7 +4066,7 @@ test('permission list unchanged', async ({ request }) => {
 
         <div class="callout callout-tip">
           <strong>Snapshot update workflow</strong>
-          When the API intentionally changes: run <code>npx playwright test --update-snapshots</code>, review the diff in Git, then commit the updated snapshot file. Never update blindly — a changed snapshot is a changed contract.
+          When the API intentionally changes: run <code>npx playwright test --update-snapshots</code>, review the diff in Git, then commit the updated snapshot file. Do not update snapshots blindly — a changed snapshot is a changed contract.
         </div>
 
         <div class="callout callout-info">
@@ -4184,8 +4184,8 @@ test('user list — at least 5 items returned', async ({ request }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — include the URL in failure messages</strong>
-          Always include <code>received.url()</code> in the matcher's <code>message()</code> function. When a custom matcher fails in a parallel suite with 200 tests, the failure message is the only context available. Without the URL, you cannot tell which of 50 API calls produced the bad response.
+          <strong>Practical note — include the URL in failure messages</strong>
+          Include <code>received.url()</code> in the matcher's <code>message()</code> function. When a custom matcher fails in a parallel suite with 200 tests, the failure message is the only context available. Without the URL, you cannot tell which of 50 API calls produced the bad response.
         </div>
       </div>
 
@@ -4193,7 +4193,7 @@ test('user list — at least 5 items returned', async ({ request }) => {
       <div id="adv-fail-status" class="subsection">
         <h3><span class="sub-num">3.13</span> <code>failOnStatusCode</code>: Automatic 4xx/5xx Throwing <span class="tag tag-blue" style="font-size:11px;vertical-align:middle;margin-left:6px;">v1.51</span></h3>
         <p>
-          By default <code>APIRequestContext</code> returns every response without throwing — you must explicitly check the status. The <code>failOnStatusCode</code> option reverses that: any response outside 2xx/3xx throws immediately, so test code stays focused on the happy-path logic rather than defensive guard clauses.
+          By default, API responses come back even for 4xx/5xx, which is useful for negative tests but noisy for happy-path suites. Turning on <code>failOnStatusCode</code> makes failures loud immediately, so unexpected status regressions stop the test at the point they happen.
         </p>
 
         <div class="code-block">
@@ -4264,7 +4264,7 @@ test('catch the thrown error and assert its message', async () => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — use <code>rejects.toThrow(/status/)</code> for negative path tests</strong>
+          <strong>Practical note — use <code>rejects.toThrow(/status/)</code> for negative path tests</strong>
           When <code>failOnStatusCode: true</code> is global, the thrown error message contains the HTTP status code. Use <code>await expect(ctx.get('/missing')).rejects.toThrow(/404/)</code> to assert the exact failure code. This is more readable than wrapping in <code>try/catch</code> and manually checking <code>error.message</code>.
         </div>
       </div>
@@ -4479,8 +4479,8 @@ test('application/x-www-form-urlencoded via form option', async ({ request }) =>
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — always set the MIME type on Blob</strong>
-          When constructing a <code>File</code> or <code>Blob</code>, always pass the <code>type</code> option (<code>new Blob([content], { type: 'text/csv' })</code>). Without it, Playwright sets <code>application/octet-stream</code>, which causes validation failures on APIs that enforce MIME type. The server's virus scanner or content-policy middleware may also reject unknown types.
+          <strong>Practical note — set the MIME type on Blob</strong>
+          When constructing a <code>File</code> or <code>Blob</code>, pass the <code>type</code> option (<code>new Blob([content], { type: 'text/csv' })</code>). Without it, Playwright sets <code>application/octet-stream</code>, which causes validation failures on APIs that enforce MIME type. The server's virus scanner or content-policy middleware may also reject unknown types.
         </div>
       </div>
 
@@ -4547,7 +4547,7 @@ test('API endpoint must not redirect — strict redirect policy', async () => {
 
         <div class="callout callout-info">
           <strong>Where this is most useful</strong>
-          Redirect control testing is critical for: (1) <strong>HTTP→HTTPS enforcement</strong> — assert that <code>http://</code> requests return a 301 to <code>https://</code>; (2) <strong>URL canonicalisation</strong> — verify trailing-slash redirects; (3) <strong>authentication redirects</strong> — assert that unauthenticated requests redirect to <code>/login</code> with the correct status code (302 vs 307); (4) <strong>security contract tests</strong> — production APIs with authenticated requests should never redirect (a redirect leaks the <code>Authorization</code> header to the redirect target).
+          Redirect control testing is critical for: (1) <strong>HTTP→HTTPS enforcement</strong> — assert that <code>http://</code> requests return a 301 to <code>https://</code>; (2) <strong>URL canonicalisation</strong> — verify trailing-slash redirects; (3) <strong>authentication redirects</strong> — assert that unauthenticated requests redirect to <code>/login</code> with the correct status code (302 vs 307); (4) <strong>security contract tests</strong> — production APIs with authenticated requests typically should not redirect (a redirect can leak the <code>Authorization</code> header to the redirect target).
         </div>
       </div>
 
@@ -4616,7 +4616,7 @@ test('API honours cookie from setStorageState', async ({ page, context, request 
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — verify the new session is applied before making API calls</strong>
+          <strong>Practical note — verify the new session is applied before making API calls</strong>
           After calling <code>setStorageState()</code>, use <code>page.evaluate(() =&gt; document.cookie)</code> to assert the expected session cookie name is present before making <code>page.request</code> calls. This prevents false passes where the page silently falls back to the old session if the state file was invalid or incomplete.
         </div>
       </div>
@@ -4754,7 +4754,7 @@ test('TLS protocol version is TLS 1.2 or higher', async ({ request }) => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — run TLS checks on a nightly schedule, not every PR</strong>
+          <strong>Practical note — run TLS checks on a nightly schedule, not every PR</strong>
           Certificates expire on a calendar schedule independent of code changes. Schedule TLS expiry tests as a nightly cron job so they catch approaching expiry proactively. Set the warning threshold to 14 days (<code>daysLeft &gt; 14</code>) to give operations a two-week window to renew before expiry causes outages.
         </div>
       </div>
@@ -4834,7 +4834,7 @@ test.describe('HAR per test chunk', () => {
         </div>
 
         <div class="callout callout-tip">
-          <strong>Technical tip — use <code>content: 'omit'</code> for small CI artifacts</strong>
+          <strong>Practical note — use <code>content: 'omit'</code> for small CI artifacts</strong>
           <code>content: 'omit'</code> in <code>startHar()</code> records only headers and metadata — no response bodies. This keeps HAR files small for CI artifact storage. Use <code>content: 'embed'</code> only when you need to replay with <code>page.routeFromHAR()</code>, as embedded bodies are required for replay but can make HAR files 10× larger for content-heavy pages.
         </div>
       </div>
@@ -5374,7 +5374,7 @@ test('mock adapts behaviour to negotiated subprotocol', async ({ page }) => {
       Playwright API Testing Playbook &mdash; TypeScript examples target Playwright v1.46+ and Node.js 18+.
       All code examples use public endpoints (jsonplaceholder.typicode.com, httpbin.org, dummyjson.com) and are immediately runnable after <code>npm init playwright@latest</code>.
       <br><br>
-      <span style="font-weight:600; color: var(--text-secondary);">Mahiteja Bollojula
+      <span style="font-weight:600; color: var(--text-secondary);">Author note: compiled from production test-suite patterns and official docs, then refined with edge cases we repeatedly hit in CI. Last updated: July 2026.<br>Mahiteja Bollojula</span>
     </footer>
   </main>
 </div>
@@ -5521,3 +5521,6 @@ test('mock adapts behaviour to negotiated subprotocol', async ({ page }) => {
 </script>
 </body>
 </html>
+
+
+
