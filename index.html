@@ -166,6 +166,21 @@
       line-height: 1.6;
     }
 
+    .author-link {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .author-link a {
+      color: #1a6aa8;
+      font-weight: 600;
+    }
+
+    .author-link a:hover {
+      color: var(--accent);
+    }
+
     .tag {
       display: inline-block;
       padding: 3px 10px;
@@ -870,6 +885,7 @@
         <span class="tag tag-orange">Reference</span>
       </div>
       <h1>Playwright API Testing Playbook</h1>
+      <p class="author-link">Author: <a href="https://www.linkedin.com/in/mahiteja-bollojula-477a60145/" target="_blank" rel="noopener noreferrer"><strong>Mahiteja Bollojula</strong></a></p>
       <p>Practical, field-tested guide for API testing with Playwright. It focuses on request lifecycle, common HTTP patterns, auth flows teams actually implement, mocking strategies, CI/CD setup, and realistic tradeoffs versus Postman/Newman, RestAssured, Supertest, Karate, Cypress, and k6.</p>
     </div>
 
@@ -5374,7 +5390,7 @@ test('mock adapts behaviour to negotiated subprotocol', async ({ page }) => {
       Playwright API Testing Playbook &mdash; TypeScript examples target Playwright v1.46+ and Node.js 18+.
       All code examples use public endpoints (jsonplaceholder.typicode.com, httpbin.org, dummyjson.com) and are immediately runnable after <code>npm init playwright@latest</code>.
       <br><br>
-      <span style="font-weight:600; color: var(--text-secondary);">Author note: compiled from production test-suite patterns and official docs, then refined with edge cases we repeatedly hit in CI. Last updated: July 2026.<br>Mahiteja Bollojula</span>
+      <span style="font-weight:600; color: var(--text-secondary);">Built from real project experience and official docs. Updated with CI learnings. Last updated: July 2026.<br><a href="https://www.linkedin.com/in/mahiteja-bollojula-477a60145/" target="_blank" rel="noopener noreferrer"><strong>Mahiteja Bollojula</strong></a></span>
     </footer>
   </main>
 </div>
